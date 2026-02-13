@@ -68,12 +68,35 @@ class DipoleIllumination(Illumination):
             raise ValueError("type must be 'DIPOLE_X' or 'DIPOLE_Y'")
 
 
+@dataclass
+class AbsorberLayers:
+    thicknesses: list[float] = field(default_factory=lambda: [60.0])  # nm
+    complex_refractive_indices: list[complex] = field(
+        default_factory=lambda: [0.9567 + 0.0343j]
+    )
+
+    @cached_property
+    def dielectric_constants(self) -> list[complex]:
+        return [cri**2 for cri in self.complex_refractive_indices]
+
+    @cached_property
+    def total_thickness(self) -> float:
+        return sum(self.thicknesses)
+
+    @cached_property
+    def z_ref_from_abs_top(self) -> float:
+        return (
+            self.total_thickness + 42.0
+        )  # reflection point inside ML from the top of the absorber
+
+
 @dataclass(frozen=True)
 class SimulationConfig:
     wavelength: float = 13.5  # nm
     NA: float = 0.33
     is_high_na: bool = False
     illumination: Illumination = field(default_factory=lambda: CircularIllumination())
+    absorber_layers: AbsorberLayers = field(default_factory=lambda: AbsorberLayers())
     mask_width: int = 1024  # nm
     mask_height: int = 1024  # nm
     mask_refinement_factor_x: int = 1
@@ -89,6 +112,70 @@ class SimulationConfig:
     defocus_step: float = None
     # TODO:
     # cutoff_factor: float = 6.0
+
+    def __str__(self) -> str:
+        lines = ["=" * 60, "Simulation Configuration", "=" * 60]
+
+        # Optical parameters
+        lines.append("\n[Optical Parameters]")
+        lines.append(f"  Wavelength: {self.wavelength} nm")
+        lines.append(f"  NA: {self.NA}")
+        lines.append(f"  High NA mode: {self.is_high_na}")
+        lines.append(f"  Central obscuration: {self.central_obscuration}")
+
+        # Illumination
+        lines.append("\n[Illumination]")
+        ill_type = type(self.illumination).__name__.replace("Illumination", "")
+        lines.append(f"  Type: {ill_type}")
+        if hasattr(self.illumination, 'outer_sigma'):
+            lines.append(f"  Outer sigma: {self.illumination.outer_sigma}")
+        if hasattr(self.illumination, 'inner_sigma'):
+            lines.append(f"  Inner sigma: {self.illumination.inner_sigma}")
+        if hasattr(self.illumination, 'open_angle'):
+            lines.append(f"  Open angle: {self.illumination.open_angle}°")
+
+        # Absorber layers
+        lines.append("\n[Absorber Layers]")
+        lines.append(f"  Number of layers: {len(self.absorber_layers.thicknesses)}")
+        lines.append(f"  Total thickness: {self.absorber_layers.total_thickness:.2f} nm")
+        for i, (t, n) in enumerate(zip(self.absorber_layers.thicknesses,
+                                        self.absorber_layers.complex_refractive_indices)):
+            label = "(top)" if i == 0 else ""
+            lines.append(f"    Layer {i+1} {label}: n={n.real:.4f}+{n.imag:.4f}j, t={t:.1f} nm")
+
+        # Mask parameters
+        lines.append("\n[Mask Parameters]")
+        lines.append(f"  Mask size: {self.mask_width} × {self.mask_height} nm²")
+        lines.append(f"  Refinement factor: {self.mask_refinement_factor_x} × {self.mask_refinement_factor_y}")
+        lines.append(f"  Magnification: {self.magnification_x} × {self.magnification_y}")
+        lines.append(f"  Exposure field: {self.exposure_field_width} × {self.exposure_field_height} nm²")
+
+        # Angle parameters
+        lines.append("\n[Angle Parameters]")
+        lines.append(f"  Incidence angle: {self.incidence_angle}°")
+        lines.append(f"  Azimuthal angle: {self.azimuthal_angle}°")
+
+        # Defocus parameters
+        lines.append("\n[Defocus Parameters]")
+        if self.defocus_max is None or self.defocus_step is None:
+            lines.append(f"  Single defocus: {self.defocus_min} nm")
+        else:
+            lines.append(f"  Range: {self.defocus_min} to {self.defocus_max} nm")
+            lines.append(f"  Step: {self.defocus_step} nm")
+            lines.append(f"  Number of points: {len(self.defocus_list)}")
+
+        # Calculation parameters
+        lines.append("\n[Calculation Parameters]")
+        lines.append(f"  Mesh: {self.mesh}°")
+        lines.append(f"  k (wavenumber): {self.k:.6f} nm⁻¹")
+        lines.append(f"  kX: {self.kX:.6f} nm⁻¹")
+        lines.append(f"  kY: {self.kY:.6f} nm⁻¹")
+        lines.append(f"  ndiv: {self.ndivX} × {self.ndivY}")
+        lines.append(f"  lsmax: {self.lsmaxX} × {self.lsmaxY}")
+        lines.append(f"  lpmax: {self.lpmaxX} × {self.lpmaxY}")
+
+        lines.append("=" * 60)
+        return "\n".join(lines)
 
     @property
     def defocus_list(self) -> list:
@@ -251,12 +338,3 @@ epsilon_ru = n_ru**2
 epsilon_mo_si2 = n_mo_si2**2
 epsilon_ru_si = n_ru_si**2
 epsilon_si_o2 = n_si_o2**2
-
-
-dabst = 60.0  # absorber thickness (nm)
-z0 = dabst + 42.0  # reflection point inside ML from the top of the absorber
-
-# absorber properties
-nta = 0.9567 + 0.0343j  # absorber complex refractive index
-absorption_amplitudes = [nta**2]
-absorber_layer_thicknesses = [dabst]

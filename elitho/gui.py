@@ -189,7 +189,7 @@ def render_inputs():
                     {
                         "n": st.session_state.get(f"layer_{li}_n", 0.9567),
                         "k": st.session_state.get(f"layer_{li}_k", 0.0343),
-                        "thickness_nm": st.session_state.get(
+                        "thickness": st.session_state.get(
                             f"layer_{li}_thickness", 60.0
                         ),
                     }
@@ -258,7 +258,7 @@ def render_inputs():
                                         "k", 0.0
                                     )
                                     st.session_state[f"layer_{li}_thickness"] = (
-                                        layer.get("thickness_nm", 0.0)
+                                        layer.get("thickness", 0.0)
                                     )
                             elif key == "opens":
                                 st.session_state["mask_num_opens"] = len(value)
@@ -471,11 +471,18 @@ def render_inputs():
             )
             layers.append(
                 {
-                    "thickness_nm": float(thickness_val),
+                    "thickness": float(thickness_val),
                     "n": float(n_real),
                     "k": float(k_imag),
                 }
             )
+
+    # Create AbsorberLayers instance from GUI parameters
+    thicknesses = [layer["thickness"] for layer in layers]
+    complex_refractive_indices = [complex(layer["n"], layer["k"]) for layer in layers]
+    absorber_layers = config.AbsorberLayers(
+        thicknesses=thicknesses, complex_refractive_indices=complex_refractive_indices
+    )
 
     st.markdown("---")
 
@@ -685,6 +692,7 @@ def render_inputs():
         NA=float(NA),
         is_high_na=NA > 0.33,
         illumination=ill,
+        absorber_layers=absorber_layers,
         mask_width=int(mask_width),
         mask_height=int(mask_height),
         magnification_x=int(magnification_x),
