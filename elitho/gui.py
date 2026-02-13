@@ -738,7 +738,49 @@ with main_col:
 
 with side_col:
     st.subheader("Simulation Results")
-    run = st.button("Run simulation")
+
+    # Buttons for run and save
+    btn_col1, btn_col2 = st.columns(2)
+    with btn_col1:
+        run = st.button("Run simulation", use_container_width=True)
+    with btn_col2:
+        # Save button (only enabled if results exist)
+        save_enabled = "_generated_intensity" in st.session_state
+        if save_enabled:
+            results = st.session_state["_generated_intensity"]
+
+            # Prepare data for download
+            defocus_values = np.array([r[0] for r in results])
+            x_polarized = np.array([r[1] for r in results])
+            y_polarized = np.array([r[2] for r in results])
+            unpolarized = np.array([r[3] for r in results])
+
+            # Create npz file in memory
+            import io
+
+            buffer = io.BytesIO()
+            np.savez_compressed(
+                buffer,
+                defocus=defocus_values,
+                x_polarized=x_polarized,
+                y_polarized=y_polarized,
+                unpolarized=unpolarized,
+            )
+            buffer.seek(0)
+
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"elitho_results_{timestamp}.npz"
+
+            st.download_button(
+                label="💾 Save results",
+                data=buffer.getvalue(),
+                file_name=default_filename,
+                mime="application/octet-stream",
+                use_container_width=True,
+            )
+        else:
+            st.button("💾 Save results", disabled=True, use_container_width=True)
+
     result_placeholder = st.empty()
 
     # When Run pressed: generate intensities and persist into session_state
@@ -746,6 +788,7 @@ with side_col:
         with st.spinner("Run simulation ..."):
             defocus2intensities = generate_intensities(sc, mask)
         st.session_state["_generated_intensity"] = defocus2intensities
+        st.rerun()
 
     # If frames exist, show defocus-value slider and selected frame
     if "_generated_intensity" in st.session_state:
@@ -780,38 +823,3 @@ with side_col:
                 show_intensity("X Polarization", int_x_polar)
                 show_intensity("Y Polarization", int_y_polar)
                 show_intensity("Unpolarized", int_unpolar)
-
-        # default_idx = int(st.session_state.get("_generated_defocus_idx", 0))
-        # default_defocus = float(defocus_vals[default_idx]) if defocus_vals else 0.0
-        # defocus_selected = st.slider(
-        #     "Defocus [nm]",
-        #     min_value=def_min,
-        #     max_value=def_max,
-        #     value=default_defocus,
-        #     step=float(defocus_step_val),
-        #     format="%.3f",
-        #     key="defocus_value_slider",
-        # )
-
-        # idx = max(0, min(len(defocus_vals) - 1, int(idx)))
-        # st.session_state["_generated_defocus_idx"] = int(idx)
-
-        # sel_img = frames[int(idx)]
-        # sel_profile = profiles[int(idx)] if profiles else None
-
-        # fig, axs = plt.subplots(1, 2, figsize=(10, 4))
-        # ax = axs[0]
-        # im = ax.imshow(sel_img, cmap="inferno", origin="lower")
-        # ax.set_title(f"PSF (defocus={defocus_vals[int(idx)]:.3f} μm)")
-        # ax.axis("off")
-        # fig.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
-
-        # if sel_profile is not None:
-        #     axs[1].plot(sel_profile)
-        #     axs[1].set_title("Central cross-section")
-        #     axs[1].set_xlabel("pixel")
-        #     axs[1].set_ylabel("normalized intensity")
-        # else:
-        #     axs[1].axis("off")
-
-        # fig.tight_layout()
