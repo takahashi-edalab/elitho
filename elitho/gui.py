@@ -16,7 +16,7 @@ except Exception:
     _root = os.path.abspath(os.path.join(_here, os.pardir))
     if _root not in sys.path:
         sys.path.insert(0, _root)
-    from elitho import source, config
+    from elitho import source, config, intensity
 
 
 st.set_page_config(page_title="ELitho Simulation", layout="wide")
