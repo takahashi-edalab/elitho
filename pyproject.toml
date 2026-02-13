@@ -9,3 +9,6 @@ dependencies = [
     "numpy>=2.4.2",
     "streamlit>=1.54.0",
 ]
+
+[project.scripts]
+elitho-gui = "elitho.cli:run_gui"
