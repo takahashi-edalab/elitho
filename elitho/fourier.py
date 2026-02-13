@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import cupy as cp
 import numpy as np
 from elitho import descriptors
