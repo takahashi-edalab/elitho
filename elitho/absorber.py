@@ -1,4 +1,5 @@
-import cupy as cp
+# import cupy as cp
+import numpy as np
 from elitho import config
 from elitho.utils.mat_utils import linalg_eig
 
@@ -46,7 +47,8 @@ def absorber(
     U2U: "xp.ndarray",
     U2B: "xp.ndarray",
 ):
-    xp = cp.get_array_module(kxplus)
+    # xp = cp.get_array_module(kxplus)
+    xp = np
     l = (
         doc.valid_x_coords[:, None]
         - doc.valid_x_coords[None, :]

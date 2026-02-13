@@ -1,8 +1,10 @@
-import cupy as cp
+# import cupy as cp
+import numpy as np
 
 
 def refine(mask: "xp.ndarray", scale_x: int, scale_y: int) -> "xp.ndarray":
-    xp = cp.get_array_module(mask)
+    # xp = cp.get_array_module(mask)
+    xp = np
     refined_pattern = xp.kron(mask, xp.ones((scale_x, scale_y)))
     return refined_pattern
 

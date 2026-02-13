@@ -1,4 +1,4 @@
-import cupy as cp
+# import cupy as cp
 import numpy as np
 from elitho import config, fourier, multilayer, descriptors, diffraction_order
 from elitho.absorber import absorber
@@ -11,7 +11,8 @@ def calc_Ax(
     ky0: float,
     doc: diffraction_order.DiffractionOrderCoordinate,
 ) -> "xp.ndarray":
-    xp = cp.get_array_module(FG)
+    # xp = cp.get_array_module(FG)
+    xp = np
     Ax = xp.zeros(
         (sc.nsourceX, sc.nsourceY, doc.num_valid_diffraction_orders),
         dtype=xp.complex128,
@@ -48,7 +49,8 @@ def vector_potential(
     dod: descriptors.DiffractionOrderDescriptor,
     doc: diffraction_order.DiffractionOrderCoordinate,
 ) -> "xp.ndarray":
-    xp = cp.get_array_module(mask2d)
+    # xp = cp.get_array_module(mask2d)
+    xp = np
     # --- 1. calc fourier coefficients for each layer ---
     epsN, etaN, zetaN, sigmaN = fourier.coefficients(
         mask2d, sc.absorber_layers.dielectric_constants, dod
