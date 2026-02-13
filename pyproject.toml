@@ -5,7 +5,6 @@ description = "Python-based EUV simulation tool for lithography process developm
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
-    "cupy>=10.0.0",
     "matplotlib>=3.5.0",
     "numpy>=1.21.0",
     "scipy>=1.7.0",
