@@ -735,7 +735,7 @@ def show_intensity(title: str, img: np.ndarray) -> None:
         st.markdown(title)
     with col2:
         fig_mask, axm = plt.subplots()
-        axm.imshow(img)
+        axm.imshow(img, origin="lower")
         axm.axis("off")
         st.pyplot(fig_mask, width=256)
 
