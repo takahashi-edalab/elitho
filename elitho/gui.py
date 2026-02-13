@@ -4,6 +4,8 @@ import matplotlib.pyplot as plt
 import streamlit as st
 import os
 import sys
+from datetime import datetime
+from decimal import Decimal
 
 try:
     from elitho import source, config, intensity
@@ -86,7 +88,163 @@ def generate_intensities(sc: config.SimulationConfig, mask: np.ndarray) -> list:
     return results
 
 
+class DecimalEncoder(json.JSONEncoder):
+    """Custom JSON encoder that handles Decimal and float with precision"""
+    def default(self, obj):
+        if isinstance(obj, Decimal):
+            return float(obj)
+        return super().default(obj)
+
+    def encode(self, obj):
+        def normalize_floats(item):
+            if isinstance(item, float):
+                # Remove trailing zeros and unnecessary precision
+                s = f"{item:.10f}".rstrip('0').rstrip('.')
+                return float(s)
+            elif isinstance(item, dict):
+                return {k: normalize_floats(v) for k, v in item.items()}
+            elif isinstance(item, list):
+                return [normalize_floats(i) for i in item]
+            return item
+        return super().encode(normalize_floats(obj))
+
+
+def save_parameters(params: dict, filename: str = None) -> str:
+    """Save all parameters to JSON file"""
+    if filename is None:
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        filename = f"elitho_params_{timestamp}.json"
+
+    with open(filename, "w", encoding="utf-8") as f:
+        json.dump(params, f, indent=2, ensure_ascii=False, cls=DecimalEncoder)
+
+    return filename
+
+
+def load_parameters(filename: str) -> dict:
+    """Load parameters from JSON file"""
+    with open(filename, "r", encoding="utf-8") as f:
+        return json.load(f)
+
+
 def render_inputs():
+    # Save/Load controls in an expander for cleaner UI
+    with st.expander("💾 Save / Load Parameters", expanded=False):
+        col1, col2 = st.columns(2)
+
+        with col1:
+            st.markdown("**Save Parameters**")
+
+            # Collect all parameters
+            params = {
+                "wavelength": st.session_state.get("wavelength", defaults.get("wavelength", 13.5)),
+                "NA": st.session_state.get("NA", defaults.get("NA", 0.33)),
+                "magnification_x": st.session_state.get("magnification_x", defaults.get("magnification_x", 4)),
+                "magnification_y": st.session_state.get("magnification_y", defaults.get("magnification_y", 4)),
+                "central_obscuration": st.session_state.get("central_obscuration", defaults.get("central_obscuration", 0.2)),
+                "incidence_angle": st.session_state.get("incidence_angle", defaults.get("incidence_angle", -6.0)),
+                "azimuthal_angle": st.session_state.get("azimuthal_angle", defaults.get("azimuthal_angle", 0.0)),
+                "defocus_min": st.session_state.get("defocus_min", defaults.get("defocus_min_um", 0.0)),
+                "defocus_max": st.session_state.get("defocus_max", defaults.get("defocus_max_um", 1.0)),
+                "defocus_step": st.session_state.get("defocus_step", defaults.get("defocus_step_um", 0.1)),
+                "mask_width": st.session_state.get("mask_width", defaults.get("mask_width", 1024)),
+                "mask_height": st.session_state.get("mask_height", defaults.get("mask_height", 1024)),
+                "mesh": st.session_state.get("mesh", defaults.get("mesh", 0.5)),
+                "source_type": st.session_state.get("source_type", "CIRCULAR"),
+                "outer_sigma": st.session_state.get("outer_sigma", 0.9),
+                "inner_sigma": st.session_state.get("inner_sigma", 0.55),
+                "open_angle": st.session_state.get("open_angle", 90.0),
+                "num_layers": st.session_state.get("num_layers", 1),
+            }
+
+            # Add layer parameters
+            num_layers = int(params["num_layers"])
+            layers = []
+            for li in range(num_layers):
+                layers.append({
+                    "n": st.session_state.get(f"layer_{li}_n", 0.9567),
+                    "k": st.session_state.get(f"layer_{li}_k", 0.0343),
+                    "thickness_nm": st.session_state.get(f"layer_{li}_thickness", 60.0)
+                })
+            params["layers"] = layers
+
+            # Add mask opens
+            num_opens = st.session_state.get("mask_num_opens", 1)
+            params["num_opens"] = num_opens
+            opens = []
+            for oi in range(1, int(num_opens) + 1):
+                opens.append({
+                    "center_x_um": st.session_state.get(f"mask_open_{oi}_cx", 0.0),
+                    "center_y_um": st.session_state.get(f"mask_open_{oi}_cy", 0.0),
+                    "width_um": st.session_state.get(f"mask_open_{oi}_w", 50.0),
+                    "height_um": st.session_state.get(f"mask_open_{oi}_h", 50.0)
+                })
+            params["opens"] = opens
+
+            # Convert to JSON string for download
+            json_str = json.dumps(params, indent=2, ensure_ascii=False, cls=DecimalEncoder)
+
+            # Generate default filename
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            default_filename = f"elitho_params_{timestamp}.json"
+
+            st.download_button(
+                label="💾 Download Parameters",
+                data=json_str,
+                file_name=default_filename,
+                mime="application/json",
+                use_container_width=True
+            )
+
+        with col2:
+            st.markdown("**Load Parameters**")
+
+            uploaded_file = st.file_uploader(
+                "Choose a JSON file",
+                type=["json"],
+                key="param_loader"
+            )
+
+            if uploaded_file is not None:
+                # Use file name and size as unique identifier
+                file_signature = f"{uploaded_file.name}_{uploaded_file.size}"
+
+                # Auto-load if this is a new file
+                if st.session_state.get("last_loaded_file") != file_signature:
+                    try:
+                        # Read file content as bytes and decode
+                        file_content = uploaded_file.read()
+                        params = json.loads(file_content.decode('utf-8'))
+
+                        # Load parameters into session state
+                        for key, value in params.items():
+                            if key == "layers":
+                                st.session_state["num_layers"] = len(value)
+                                for li, layer in enumerate(value):
+                                    st.session_state[f"layer_{li}_n"] = layer.get("n", 0.0)
+                                    st.session_state[f"layer_{li}_k"] = layer.get("k", 0.0)
+                                    st.session_state[f"layer_{li}_thickness"] = layer.get("thickness_nm", 0.0)
+                            elif key == "opens":
+                                st.session_state["mask_num_opens"] = len(value)
+                                for oi, open_data in enumerate(value, start=1):
+                                    st.session_state[f"mask_open_{oi}_cx"] = int(open_data.get("center_x_um", 0))
+                                    st.session_state[f"mask_open_{oi}_cy"] = int(open_data.get("center_y_um", 0))
+                                    st.session_state[f"mask_open_{oi}_w"] = int(open_data.get("width_um", 50))
+                                    st.session_state[f"mask_open_{oi}_h"] = int(open_data.get("height_um", 50))
+                            elif key not in ["num_opens"]:
+                                st.session_state[key] = value
+
+                        # Mark this file as loaded
+                        st.session_state["last_loaded_file"] = file_signature
+                        st.success(f"✅ Loaded: {uploaded_file.name}")
+                        st.rerun()
+                    except Exception as e:
+                        st.error(f"❌ Error: {e}")
+            else:
+                # File was cleared (X button clicked)
+                if "last_loaded_file" in st.session_state:
+                    st.session_state.pop("last_loaded_file", None)
+
     st.subheader("Optical Parameters")
     c1, c2, c3, c4 = st.columns(4)
     with c1:
@@ -227,11 +385,25 @@ def render_inputs():
         with st.expander(label, expanded=True):
             st.markdown("Complex refractive index")
             a1, a2 = st.columns(2)
+
+            # Determine default values
+            if li < len(complex_refractive_index):
+                default_n = complex_refractive_index[li].real
+                default_k = complex_refractive_index[li].imag
+            else:
+                default_n = 0.9567 if li == 0 else 0.0
+                default_k = 0.0343 if li == 0 else 0.0
+
+            if li < len(thickness):
+                default_thickness = thickness[li]
+            else:
+                default_thickness = 60.0 if li == 0 else 0.0
+
             with a1:
                 n_real = st.number_input(
                     "Real part (n)",
                     min_value=0.0,
-                    value=complex_refractive_index[li].real if li == 0 else 0.0,
+                    value=default_n,
                     step=0.0001,
                     format="%.4f",
                     key=f"layer_{li}_n",
@@ -240,22 +412,22 @@ def render_inputs():
                 k_imag = st.number_input(
                     "Imag part (k)",
                     min_value=0.0,
-                    value=complex_refractive_index[li].imag if li == 0 else 0.0,
+                    value=default_k,
                     step=0.0001,
                     format="%.4f",
                     key=f"layer_{li}_k",
                 )
-            thickness = st.number_input(
+            thickness_val = st.number_input(
                 "Thickness [nm]",
                 min_value=0.0,
-                value=thickness[li] if li == 0 else 0.0,
+                value=default_thickness,
                 step=0.1,
                 format="%.1f",
                 key=f"layer_{li}_thickness",
             )
             layers.append(
                 {
-                    "thickness_nm": float(thickness),
+                    "thickness_nm": float(thickness_val),
                     "n": float(n_real),
                     "k": float(k_imag),
                 }
@@ -300,43 +472,43 @@ def render_inputs():
                 with c1:
                     cx = st.number_input(
                         "center X [nm]",
-                        value=0.0,
-                        step=0.1,
-                        format="%.1f",
+                        value=0,
+                        step=1,
+                        format="%d",
                         key=f"mask_open_{oi}_cx",
                     )
                 with c2:
                     cy = st.number_input(
                         "center Y [nm]",
-                        value=0.0,
-                        step=0.1,
-                        format="%.1f",
+                        value=0,
+                        step=1,
+                        format="%d",
                         key=f"mask_open_{oi}_cy",
                     )
                 with c3:
                     ow = st.number_input(
                         "width [nm]",
-                        min_value=0.0,
-                        value=50.0,
-                        step=0.1,
-                        format="%.1f",
+                        min_value=0,
+                        value=50,
+                        step=1,
+                        format="%d",
                         key=f"mask_open_{oi}_w",
                     )
                 with c4:
                     oh = st.number_input(
                         "height [nm]",
-                        min_value=0.0,
-                        value=50.0,
-                        step=0.1,
-                        format="%.1f",
+                        min_value=0,
+                        value=50,
+                        step=1,
+                        format="%d",
                         key=f"mask_open_{oi}_h",
                     )
                 opens.append(
                     {
-                        "center_x_um": float(cx),
-                        "center_y_um": float(cy),
-                        "width_um": float(ow),
-                        "height_um": float(oh),
+                        "center_x_um": int(cx),
+                        "center_y_um": int(cy),
+                        "width_um": int(ow),
+                        "height_um": int(oh),
                     }
                 )
 
