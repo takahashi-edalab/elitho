@@ -90,6 +90,7 @@ def generate_intensities(sc: config.SimulationConfig, mask: np.ndarray) -> list:
 
 class DecimalEncoder(json.JSONEncoder):
     """Custom JSON encoder that handles Decimal and float with precision"""
+
     def default(self, obj):
         if isinstance(obj, Decimal):
             return float(obj)
@@ -99,13 +100,14 @@ class DecimalEncoder(json.JSONEncoder):
         def normalize_floats(item):
             if isinstance(item, float):
                 # Remove trailing zeros and unnecessary precision
-                s = f"{item:.10f}".rstrip('0').rstrip('.')
+                s = f"{item:.10f}".rstrip("0").rstrip(".")
                 return float(s)
             elif isinstance(item, dict):
                 return {k: normalize_floats(v) for k, v in item.items()}
             elif isinstance(item, list):
                 return [normalize_floats(i) for i in item]
             return item
+
         return super().encode(normalize_floats(obj))
 
 
@@ -137,18 +139,40 @@ def render_inputs():
 
             # Collect all parameters
             params = {
-                "wavelength": st.session_state.get("wavelength", defaults.get("wavelength", 13.5)),
+                "wavelength": st.session_state.get(
+                    "wavelength", defaults.get("wavelength", 13.5)
+                ),
                 "NA": st.session_state.get("NA", defaults.get("NA", 0.33)),
-                "magnification_x": st.session_state.get("magnification_x", defaults.get("magnification_x", 4)),
-                "magnification_y": st.session_state.get("magnification_y", defaults.get("magnification_y", 4)),
-                "central_obscuration": st.session_state.get("central_obscuration", defaults.get("central_obscuration", 0.2)),
-                "incidence_angle": st.session_state.get("incidence_angle", defaults.get("incidence_angle", -6.0)),
-                "azimuthal_angle": st.session_state.get("azimuthal_angle", defaults.get("azimuthal_angle", 0.0)),
-                "defocus_min": st.session_state.get("defocus_min", defaults.get("defocus_min_um", 0.0)),
-                "defocus_max": st.session_state.get("defocus_max", defaults.get("defocus_max_um", 1.0)),
-                "defocus_step": st.session_state.get("defocus_step", defaults.get("defocus_step_um", 0.1)),
-                "mask_width": st.session_state.get("mask_width", defaults.get("mask_width", 1024)),
-                "mask_height": st.session_state.get("mask_height", defaults.get("mask_height", 1024)),
+                "magnification_x": st.session_state.get(
+                    "magnification_x", defaults.get("magnification_x", 4)
+                ),
+                "magnification_y": st.session_state.get(
+                    "magnification_y", defaults.get("magnification_y", 4)
+                ),
+                "central_obscuration": st.session_state.get(
+                    "central_obscuration", defaults.get("central_obscuration", 0.2)
+                ),
+                "incidence_angle": st.session_state.get(
+                    "incidence_angle", defaults.get("incidence_angle", -6.0)
+                ),
+                "azimuthal_angle": st.session_state.get(
+                    "azimuthal_angle", defaults.get("azimuthal_angle", 0.0)
+                ),
+                "defocus_min": st.session_state.get(
+                    "defocus_min", defaults.get("defocus_min_um", 0.0)
+                ),
+                "defocus_max": st.session_state.get(
+                    "defocus_max", defaults.get("defocus_max_um", 1.0)
+                ),
+                "defocus_step": st.session_state.get(
+                    "defocus_step", defaults.get("defocus_step_um", 0.1)
+                ),
+                "mask_width": st.session_state.get(
+                    "mask_width", defaults.get("mask_width", 1024)
+                ),
+                "mask_height": st.session_state.get(
+                    "mask_height", defaults.get("mask_height", 1024)
+                ),
                 "mesh": st.session_state.get("mesh", defaults.get("mesh", 0.5)),
                 "source_type": st.session_state.get("source_type", "CIRCULAR"),
                 "outer_sigma": st.session_state.get("outer_sigma", 0.9),
@@ -161,11 +185,15 @@ def render_inputs():
             num_layers = int(params["num_layers"])
             layers = []
             for li in range(num_layers):
-                layers.append({
-                    "n": st.session_state.get(f"layer_{li}_n", 0.9567),
-                    "k": st.session_state.get(f"layer_{li}_k", 0.0343),
-                    "thickness_nm": st.session_state.get(f"layer_{li}_thickness", 60.0)
-                })
+                layers.append(
+                    {
+                        "n": st.session_state.get(f"layer_{li}_n", 0.9567),
+                        "k": st.session_state.get(f"layer_{li}_k", 0.0343),
+                        "thickness_nm": st.session_state.get(
+                            f"layer_{li}_thickness", 60.0
+                        ),
+                    }
+                )
             params["layers"] = layers
 
             # Add mask opens
@@ -173,16 +201,20 @@ def render_inputs():
             params["num_opens"] = num_opens
             opens = []
             for oi in range(1, int(num_opens) + 1):
-                opens.append({
-                    "center_x_um": st.session_state.get(f"mask_open_{oi}_cx", 0.0),
-                    "center_y_um": st.session_state.get(f"mask_open_{oi}_cy", 0.0),
-                    "width_um": st.session_state.get(f"mask_open_{oi}_w", 50.0),
-                    "height_um": st.session_state.get(f"mask_open_{oi}_h", 50.0)
-                })
+                opens.append(
+                    {
+                        "center_x_um": st.session_state.get(f"mask_open_{oi}_cx", 0.0),
+                        "center_y_um": st.session_state.get(f"mask_open_{oi}_cy", 0.0),
+                        "width_um": st.session_state.get(f"mask_open_{oi}_w", 50.0),
+                        "height_um": st.session_state.get(f"mask_open_{oi}_h", 50.0),
+                    }
+                )
             params["opens"] = opens
 
             # Convert to JSON string for download
-            json_str = json.dumps(params, indent=2, ensure_ascii=False, cls=DecimalEncoder)
+            json_str = json.dumps(
+                params, indent=2, ensure_ascii=False, cls=DecimalEncoder
+            )
 
             # Generate default filename
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
@@ -193,16 +225,14 @@ def render_inputs():
                 data=json_str,
                 file_name=default_filename,
                 mime="application/json",
-                use_container_width=True
+                use_container_width=True,
             )
 
         with col2:
             st.markdown("**Load Parameters**")
 
             uploaded_file = st.file_uploader(
-                "Choose a JSON file",
-                type=["json"],
-                key="param_loader"
+                "Choose a JSON file", type=["json"], key="param_loader"
             )
 
             if uploaded_file is not None:
@@ -214,23 +244,37 @@ def render_inputs():
                     try:
                         # Read file content as bytes and decode
                         file_content = uploaded_file.read()
-                        params = json.loads(file_content.decode('utf-8'))
+                        params = json.loads(file_content.decode("utf-8"))
 
                         # Load parameters into session state
                         for key, value in params.items():
                             if key == "layers":
                                 st.session_state["num_layers"] = len(value)
                                 for li, layer in enumerate(value):
-                                    st.session_state[f"layer_{li}_n"] = layer.get("n", 0.0)
-                                    st.session_state[f"layer_{li}_k"] = layer.get("k", 0.0)
-                                    st.session_state[f"layer_{li}_thickness"] = layer.get("thickness_nm", 0.0)
+                                    st.session_state[f"layer_{li}_n"] = layer.get(
+                                        "n", 0.0
+                                    )
+                                    st.session_state[f"layer_{li}_k"] = layer.get(
+                                        "k", 0.0
+                                    )
+                                    st.session_state[f"layer_{li}_thickness"] = (
+                                        layer.get("thickness_nm", 0.0)
+                                    )
                             elif key == "opens":
                                 st.session_state["mask_num_opens"] = len(value)
                                 for oi, open_data in enumerate(value, start=1):
-                                    st.session_state[f"mask_open_{oi}_cx"] = int(open_data.get("center_x_um", 0))
-                                    st.session_state[f"mask_open_{oi}_cy"] = int(open_data.get("center_y_um", 0))
-                                    st.session_state[f"mask_open_{oi}_w"] = int(open_data.get("width_um", 50))
-                                    st.session_state[f"mask_open_{oi}_h"] = int(open_data.get("height_um", 50))
+                                    st.session_state[f"mask_open_{oi}_cx"] = int(
+                                        open_data.get("center_x_um", 0)
+                                    )
+                                    st.session_state[f"mask_open_{oi}_cy"] = int(
+                                        open_data.get("center_y_um", 0)
+                                    )
+                                    st.session_state[f"mask_open_{oi}_w"] = int(
+                                        open_data.get("width_um", 50)
+                                    )
+                                    st.session_state[f"mask_open_{oi}_h"] = int(
+                                        open_data.get("height_um", 50)
+                                    )
                             elif key not in ["num_opens"]:
                                 st.session_state[key] = value
 
@@ -705,16 +749,37 @@ with side_col:
 
     # If frames exist, show defocus-value slider and selected frame
     if "_generated_intensity" in st.session_state:
+        results = st.session_state["_generated_intensity"]
 
-        if len(st.session_state["_generated_intensity"]) == 1:
-            result = st.session_state["_generated_intensity"][0]
-            defocus_min, int_x_polar, int_y_polar, int_unpolar = result
+        if len(results) == 1:
+            # Single defocus case
+            result = results[0]
+            defocus_val, int_x_polar, int_y_polar, int_unpolar = result
             with result_placeholder.container():
                 show_intensity("X Polarization", int_x_polar)
                 show_intensity("Y Polarization", int_y_polar)
                 show_intensity("Unpolarized", int_unpolar)
         else:
-            pass
+            # Multiple defocus case
+            with result_placeholder.container():
+                # Extract defocus values
+                defocus_values = [r[0] for r in results]
+
+                # Slider for defocus selection
+                selected_defocus = st.select_slider(
+                    "Defocus [nm]",
+                    options=defocus_values,
+                    format_func=lambda x: f"{x:.3f}",
+                )
+
+                # Find the selected result
+                selected_idx = defocus_values.index(selected_defocus)
+                _, int_x_polar, int_y_polar, int_unpolar = results[selected_idx]
+
+                # Display the three polarization results
+                show_intensity("X Polarization", int_x_polar)
+                show_intensity("Y Polarization", int_y_polar)
+                show_intensity("Unpolarized", int_unpolar)
 
         # default_idx = int(st.session_state.get("_generated_defocus_idx", 0))
         # default_defocus = float(defocus_vals[default_idx]) if defocus_vals else 0.0
