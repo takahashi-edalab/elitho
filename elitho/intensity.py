@@ -64,7 +64,7 @@ def intensity_by_abbe_source(
                 * ((kxn + sc.kx0) ** 2 + (kyn + sc.ky0) ** 2)
                 / 2.0
                 / sc.k
-                * config.z0
+                * sc.absorber_layers.z_ref_from_abs_top
                 + 1j * p2 / 2.0 / sc.k * defocus
             )
             # Calculate electric field components
@@ -97,6 +97,7 @@ def intensity(
     defocus: float = 0.0,
     cutoff_factor: float = 6.0,
 ) -> np.ndarray:
+    print(sc)
     l0s, m0s, SDIV = source.abbe_division_sampling(sc)
     SDIVSUM = np.sum(list(SDIV.values()))
 
@@ -153,14 +154,6 @@ def intensity(
 
     intensity_map = intensity_total / SDIVSUM
     return intensity_map
-
-
-def run(sc: config.SimulationConfig):
-    intensities = []
-    defocus_values = []
-
-    for defocus in sc.defocus_list:
-        pass
 
 
 def main():

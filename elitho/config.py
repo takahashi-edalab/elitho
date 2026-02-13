@@ -127,28 +127,42 @@ class SimulationConfig:
         lines.append("\n[Illumination]")
         ill_type = type(self.illumination).__name__.replace("Illumination", "")
         lines.append(f"  Type: {ill_type}")
-        if hasattr(self.illumination, 'outer_sigma'):
+        if hasattr(self.illumination, "outer_sigma"):
             lines.append(f"  Outer sigma: {self.illumination.outer_sigma}")
-        if hasattr(self.illumination, 'inner_sigma'):
+        if hasattr(self.illumination, "inner_sigma"):
             lines.append(f"  Inner sigma: {self.illumination.inner_sigma}")
-        if hasattr(self.illumination, 'open_angle'):
+        if hasattr(self.illumination, "open_angle"):
             lines.append(f"  Open angle: {self.illumination.open_angle}°")
 
         # Absorber layers
         lines.append("\n[Absorber Layers]")
         lines.append(f"  Number of layers: {len(self.absorber_layers.thicknesses)}")
-        lines.append(f"  Total thickness: {self.absorber_layers.total_thickness:.2f} nm")
-        for i, (t, n) in enumerate(zip(self.absorber_layers.thicknesses,
-                                        self.absorber_layers.complex_refractive_indices)):
+        lines.append(
+            f"  Total thickness: {self.absorber_layers.total_thickness:.2f} nm"
+        )
+        for i, (t, n) in enumerate(
+            zip(
+                self.absorber_layers.thicknesses,
+                self.absorber_layers.complex_refractive_indices,
+            )
+        ):
             label = "(top)" if i == 0 else ""
-            lines.append(f"    Layer {i+1} {label}: n={n.real:.4f}+{n.imag:.4f}j, t={t:.1f} nm")
+            lines.append(
+                f"    Layer {i+1} {label}: n={n.real:.4f}+{n.imag:.4f}j, t={t:.1f} nm"
+            )
 
         # Mask parameters
         lines.append("\n[Mask Parameters]")
         lines.append(f"  Mask size: {self.mask_width} × {self.mask_height} nm²")
-        lines.append(f"  Refinement factor: {self.mask_refinement_factor_x} × {self.mask_refinement_factor_y}")
-        lines.append(f"  Magnification: {self.magnification_x} × {self.magnification_y}")
-        lines.append(f"  Exposure field: {self.exposure_field_width} × {self.exposure_field_height} nm²")
+        lines.append(
+            f"  Refinement factor: {self.mask_refinement_factor_x} × {self.mask_refinement_factor_y}"
+        )
+        lines.append(
+            f"  Magnification: {self.magnification_x} × {self.magnification_y}"
+        )
+        lines.append(
+            f"  Exposure field: {self.exposure_field_width} × {self.exposure_field_height} nm²"
+        )
 
         # Angle parameters
         lines.append("\n[Angle Parameters]")
@@ -329,7 +343,6 @@ thickness_ru = 2.5
 thickness_mo_si = 1.661
 thickness_si_mo = 1.045
 thickness_si_ru = 0.8
-
 
 # complex permittivity
 epsilon_mo = n_mo**2

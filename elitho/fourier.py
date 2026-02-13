@@ -32,14 +32,14 @@ def mask(
 
 def coefficients(
     mask_pattern: "xp.ndarray",
-    absorption_amplitudes: list[complex],
+    dielectric_constants: list[complex],
     dod: descriptors.DiffractionOrderDescriptor,
 ) -> tuple["xp.ndarray", "xp.ndarray", "xp.ndarray", "xp.ndarray"]:
     xp = cp.get_array_module(mask_pattern)
 
     mask_width, mask_height = mask_pattern.shape
 
-    num_absorber_layers = len(absorption_amplitudes)
+    num_absorber_layers = len(dielectric_constants)
     epses = xp.zeros(
         (
             num_absorber_layers,
@@ -55,7 +55,7 @@ def coefficients(
         # eps
         eps = mask(
             mask_pattern=mask_pattern,
-            ampta=absorption_amplitudes[i],
+            ampta=dielectric_constants[i],
             ampvc=1.0,
             extraction_size_x=dod.num_diffraction_orders_x_expanded,
             extraction_size_y=dod.num_diffraction_orders_y_expanded,
@@ -63,7 +63,7 @@ def coefficients(
         # sigma
         sigma = mask(
             mask_pattern=mask_pattern,
-            ampta=1 / absorption_amplitudes[i],
+            ampta=1 / dielectric_constants[i],
             ampvc=1.0,
             extraction_size_x=dod.num_diffraction_orders_x_expanded,
             extraction_size_y=dod.num_diffraction_orders_y_expanded,
@@ -71,7 +71,7 @@ def coefficients(
         # leps
         leps = mask(
             mask_pattern=mask_pattern,
-            ampta=xp.log(absorption_amplitudes[i]),
+            ampta=xp.log(dielectric_constants[i]),
             ampvc=0.0,
             extraction_size_x=dod.num_diffraction_orders_x_expanded,
             extraction_size_y=dod.num_diffraction_orders_y_expanded,

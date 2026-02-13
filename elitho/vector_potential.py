@@ -51,7 +51,7 @@ def vector_potential(
     xp = cp.get_array_module(mask2d)
     # --- 1. calc fourier coefficients for each layer ---
     epsN, etaN, zetaN, sigmaN = fourier.coefficients(
-        mask2d, config.absorption_amplitudes, dod
+        mask2d, sc.absorber_layers.dielectric_constants, dod
     )
 
     # --- 2. kxplus, kyplus, kxy2, klm
@@ -75,8 +75,8 @@ def vector_potential(
     B = Bru
     al = xp.sqrt(sc.k**2 * config.epsilon_ru - kxy2)
     br = xp.eye(doc.num_valid_diffraction_orders, dtype=complex)
-    for eps, eta, zeta, sigma, dab in reversed(
-        list(zip(epsN, etaN, zetaN, sigmaN, config.absorber_layer_thicknesses))
+    for eps, eta, zeta, sigma, absorber_thickness in reversed(
+        list(zip(epsN, etaN, zetaN, sigmaN, sc.absorber_layers.thicknesses))
     ):
         U1U, U1B, B, al, br = absorber(
             sc.k,
@@ -90,7 +90,7 @@ def vector_potential(
             eta,
             zeta,
             sigma,
-            dab,
+            absorber_thickness,
             al,
             br,
             B,
