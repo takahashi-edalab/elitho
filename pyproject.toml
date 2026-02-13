@@ -1,0 +1,11 @@
+[project]
+name = "elitho"
+version = "0.1.0"
+description = "Python-based EUV simulation tool for lithography process development and research."
+readme = "README.md"
+requires-python = ">=3.12"
+dependencies = [
+    "matplotlib>=3.10.8",
+    "numpy>=2.4.2",
+    "streamlit>=1.54.0",
+]
