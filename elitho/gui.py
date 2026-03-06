@@ -77,16 +77,35 @@ def generate_mask(
     return mask
 
 
-def generate_intensities(sc: config.SimulationConfig, mask: np.ndarray) -> list:
+def generate_intensities(sc: config.SimulationConfig, mask: np.ndarray, cutoff_factor: float = 6.0) -> list:
+    """
+    Generate intensity maps for all defocus values and polarizations.
+
+    Args:
+        sc: Simulation configuration
+        mask: Mask pattern
+        cutoff_factor: Cutoff factor for diffraction orders
+
+    Returns:
+        List of tuples: [(defocus, int_x, int_y, int_unpolar), ...]
+    """
+    # Compute electric fields once per polarization
+    efield_x = intensity.compute_electric_fields(
+        sc, mask, config.PolarizationDirection.X, cutoff_factor
+    )
+    efield_y = intensity.compute_electric_fields(
+        sc, mask, config.PolarizationDirection.Y, cutoff_factor
+    )
+
     results = []
     for defocus in sc.defocus_list:
-        result = [defocus]
-        for polar in [config.PolarizationDirection.X, config.PolarizationDirection.Y]:
-            intensity_result = intensity.intensity(sc, mask, polar, defocus)
-            result.append(intensity_result)
-        unpolar_intensity_result = (result[-1] + result[-2]) / 2.0
-        result.append(unpolar_intensity_result)
-        results.append(tuple(result))
+        # Compute intensity for each polarization
+        int_x = intensity.compute_intensity_from_efields(sc, efield_x, defocus, cutoff_factor)
+        int_y = intensity.compute_intensity_from_efields(sc, efield_y, defocus, cutoff_factor)
+        int_unpolar = (int_x + int_y) / 2.0
+
+        results.append((defocus, int_x, int_y, int_unpolar))
+
     return results
 
 

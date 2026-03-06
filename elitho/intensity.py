@@ -2,6 +2,7 @@ import numpy as np
 from elitho import config, pupil, descriptors, diffraction_order, source
 from elitho.vector_potential import vector_potential
 from elitho.electro_field import electro_field
+from typing import Optional, Dict, Tuple
 
 
 def na_filter_amplitude_map(
@@ -89,17 +90,25 @@ def intensity_by_abbe_source(
     return intensity
 
 
-# @profile
-def intensity(
+def compute_electric_fields(
     sc: config.SimulationConfig,
     mask2d: np.ndarray,
     polar: config.PolarizationDirection,
-    defocus: float = 0.0,
     cutoff_factor: float = 6.0,
-) -> np.ndarray:
-    print(sc)
+) -> Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray, np.ndarray]]:
+    """
+    Compute electric fields for all source points.
+
+    Args:
+        sc: Simulation configuration
+        mask2d: Mask pattern
+        polar: Polarization direction
+        cutoff_factor: Cutoff factor for diffraction orders
+
+    Returns:
+        Dictionary mapping (nsx, nsy) to (Ex0m, Ey0m, Ez0m) tuples
+    """
     l0s, m0s, SDIV = source.abbe_division_sampling(sc)
-    SDIVSUM = np.sum(list(SDIV.values()))
 
     dod = descriptors.DiffractionOrderDescriptor(sc, cutoff_factor)
     doc = diffraction_order.DiffractionOrderCoordinate(
@@ -107,7 +116,8 @@ def intensity(
         dod.max_diffraction_order_y,
         diffraction_order.rounded_diamond,
     )
-    intensity_total = np.zeros((sc.exposure_field_width, sc.exposure_field_height))
+
+    efield_data = {}
     for nsx in range(-sc.ndivX + 1, sc.ndivX):
         for nsy in range(-sc.ndivY + 1, sc.ndivY):
             if SDIV[(nsx, nsy)] == 0:
@@ -135,6 +145,49 @@ def intensity(
                 pupil_coords,
                 ampxx,
             )
+            efield_data[(nsx, nsy)] = (Ex0m, Ey0m, Ez0m)
+
+    return efield_data
+
+
+def compute_intensity_from_efields(
+    sc: config.SimulationConfig,
+    efield_data: Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray, np.ndarray]],
+    defocus: float = 0.0,
+    cutoff_factor: float = 6.0,
+) -> np.ndarray:
+    """
+    Compute intensity from pre-computed electric fields.
+
+    Args:
+        sc: Simulation configuration
+        efield_data: Pre-computed electric field data from compute_electric_fields
+        defocus: Defocus value
+        cutoff_factor: Cutoff factor for diffraction orders
+
+    Returns:
+        Intensity map
+    """
+    l0s, m0s, SDIV = source.abbe_division_sampling(sc)
+    SDIVSUM = np.sum(list(SDIV.values()))
+
+    dod = descriptors.DiffractionOrderDescriptor(sc, cutoff_factor)
+    doc = diffraction_order.DiffractionOrderCoordinate(
+        dod.max_diffraction_order_x,
+        dod.max_diffraction_order_y,
+        diffraction_order.rounded_diamond,
+    )
+
+    intensity_total = np.zeros((sc.exposure_field_width, sc.exposure_field_height))
+    for nsx in range(-sc.ndivX + 1, sc.ndivX):
+        for nsy in range(-sc.ndivY + 1, sc.ndivY):
+            if SDIV[(nsx, nsy)] == 0:
+                continue
+
+            Ex0m, Ey0m, Ez0m = efield_data[(nsx, nsy)]
+            pupil_coords = pupil.PupilCoordinates(
+                sc, doc.num_valid_diffraction_orders, nsx, nsy
+            )
 
             for isd in range(SDIV[(nsx, nsy)]):
                 offset_x = sc.dkx * nsx / sc.ndivX + sc.dkx * l0s[(nsx, nsy)][isd]
@@ -154,6 +207,45 @@ def intensity(
 
     intensity_map = intensity_total / SDIVSUM
     return intensity_map
+
+
+# @profile
+def intensity(
+    sc: config.SimulationConfig,
+    mask2d: np.ndarray,
+    polar: config.PolarizationDirection,
+    defocus: float = 0.0,
+    cutoff_factor: float = 6.0,
+    efield: Optional[
+        Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray, np.ndarray]]
+    ] = None,
+) -> Tuple[
+    np.ndarray, Dict[Tuple[int, int], Tuple[np.ndarray, np.ndarray, np.ndarray]]
+]:
+    """
+    Calculate intensity distribution.
+
+    Args:
+        sc: Simulation configuration
+        mask2d: Mask pattern
+        polar: Polarization direction
+        defocus: Defocus value
+        cutoff_factor: Cutoff factor for diffraction orders
+        efield: Pre-computed electric field data (optional). If provided, electric field computation is skipped.
+
+    Returns:
+        Tuple of (intensity_map, efield). The efield can be reused for different defocus values.
+    """
+    print(sc)
+
+    # Compute electric fields if not provided
+    if efield is None:
+        efield = compute_electric_fields(sc, mask2d, polar, cutoff_factor)
+
+    # Calculate intensity using electric fields
+    intensity_map = compute_intensity_from_efields(sc, efield, defocus)
+
+    return intensity_map, efield
 
 
 def main():
