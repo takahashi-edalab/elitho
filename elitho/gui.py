@@ -62,8 +62,8 @@ def generate_mask(
 
         x0 = int(round((cx + width / 2.0 - w / 2.0) * pixels_per_um))
         x1 = int(round((cx + width / 2.0 + w / 2.0) * pixels_per_um))
-        y0 = int(round((height / 2.0 - cy - h / 2.0) * pixels_per_um))
-        y1 = int(round((height / 2.0 - cy + h / 2.0) * pixels_per_um))
+        y0 = int(round((cy + height / 2.0 - h / 2.0) * pixels_per_um))
+        y1 = int(round((cy + height / 2.0 + h / 2.0) * pixels_per_um))
 
         x0 = max(0, min(width_px - 1, x0))
         x1 = max(0, min(width_px, x1))
@@ -753,7 +753,11 @@ def render_inputs():
         except Exception as e:
             st.error(f"Unable to render illumination preview: {e}")
 
-    return sc, mask_arr
+    # generate_mask() returns the array in image convention (axis0=Y row, axis1=X column,
+    # matching imshow's origin="lower" preview). The simulation pipeline (fourier.coefficients
+    # and everything downstream) assumes the opposite: axis0=X, axis1=Y. Transpose here, at the
+    # boundary, so DIPOLE_X/magnification_x actually line up with the mask's real X direction.
+    return sc, mask_arr.T
 
 
 def show_intensity(title: str, img: np.ndarray) -> None:
@@ -762,7 +766,10 @@ def show_intensity(title: str, img: np.ndarray) -> None:
         st.markdown(title)
     with col2:
         fig_mask, axm = plt.subplots()
-        axm.imshow(img, origin="lower")
+        # img is (exposure_field_width, exposure_field_height), i.e. axis0=X, axis1=Y
+        # (simulation convention). Transpose back to image convention (axis0=Y row,
+        # axis1=X column) so it lines up visually with the mask preview.
+        axm.imshow(img.T, origin="lower")
         axm.axis("off")
         st.pyplot(fig_mask, width=256)
 
